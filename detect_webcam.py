@@ -1,6 +1,9 @@
 #bibliotecas necessarias
 import cv2
 import mediapipe as mp
+import subprocess
+import os
+
 
 
 #mp.solutions.hands para detectar as maos
@@ -20,6 +23,12 @@ camera = cv2.VideoCapture(0)
 #setando a resolucao da camera
 camera.set(cv2.CAP_PROP_FRAME_WIDTH, resolution_X)
 camera.set(cv2.CAP_PROP_FRAME_HEIGHT, resolution_Y)
+
+#setando os processos dos apps
+mspaint_process = None
+notepad_process = None
+calc_process = None
+cmd_process = None
 
 #inicializando o detector de maos e setando o numero de maximo de maos que serao detectadas
 hands = mp_hands.Hands(max_num_hands=4,)
@@ -54,7 +63,7 @@ def find_coord_hand(img,side_invert = False):
 
 def fingers_raised(hand):
     fingers = []
-    for fingerstip in [8, 12, 16, 20]:
+    for fingerstip in [4, 8, 12, 16, 20]:
         if hand['coordenadas'][fingerstip][1] < hand['coordenadas'][fingerstip - 2][1]:
             #coordenda y e a media do dedo
             fingers.append(True)
@@ -63,6 +72,11 @@ def fingers_raised(hand):
     return fingers
 
 
+def start_process(program):
+    return subprocess.Popen(program, shell=True)
+
+def kill_process(process):
+    os.system(f"TASKKILL /IM {process} /F")
 
 
 #loop para mostrar a camera
@@ -77,7 +91,26 @@ while camera.isOpened():
 
     if len(all_hands) == 1:
         info_finger_hand = fingers_raised(all_hands[0])
-        print(info_finger_hand)
+        if(info_finger_hand == [True, False, False, False] and notepad_process is None):
+            notepad_process = start_process("notepad")
+        elif(info_finger_hand == [True, True, False, False,False] and mspaint_process is None):
+            mspaint_process = start_process("mspaint")
+        elif(info_finger_hand == [True, True, True, False] and calc_process is None):
+            calc_process = start_process("calc")
+        if(info_finger_hand == [False, False, False, False]):
+            try:
+                if notepad_process is not None:
+                    kill_process("notepad.exe")
+                    notepad_process = None
+                if mspaint_process is not None:
+                    kill_process("mspaint.exe")
+                    mspaint_process = None
+                if calc_process is not None:
+                    kill_process("CalculatorApp.exe")
+                    calc_process = None
+                print("Todos os aplicativos foram fechados")
+            except Exception as e:
+                print(f"Erro ao fechar aplicativos: {e}")
 
     cv2.imshow("Camera",img)
     key = cv2.waitKey(1)
